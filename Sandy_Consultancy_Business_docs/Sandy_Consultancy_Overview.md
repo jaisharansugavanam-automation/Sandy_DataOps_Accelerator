@@ -5,8 +5,8 @@
 | Attribute          | Detail                        |
 |--------------------|-------------------------------|
 | **Company Name**   | Sandy Consultancy             |
-| **Founded**        | June 2022                     |
-| **Total Employees**| 50 (cumulative, till date)    |
+| **Founded**        | June 2024               |
+| **Total Employees**| 25 (cumulative, till date)    |
 | **Total Clients**  | 10 (cumulative, till date)    |
 | **Nature**         | IT Outsourcing Consultancy    |
 
