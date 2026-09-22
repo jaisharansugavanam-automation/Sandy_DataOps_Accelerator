@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run GitHub Push Agent",
+      "type": "shell",
+      "command": "python",
+      "args": [
+        "${workspaceFolder}/DataOps_Python/athish/github_push_agent.py",
+        "${input:userPrompt}"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "userPrompt",
+      "type": "promptString",
+      "description": "Enter your push request (e.g., 'Push C:/path/file.csv to branch feature/test'):"
+    }
+  ]
+}

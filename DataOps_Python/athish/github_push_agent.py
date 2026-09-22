@@ -1,7 +1,7 @@
 import os
 import re
 import subprocess
-
+import sys
 
 # ==========================================
 # 1. PREDEFINED SDK / GIT FUNCTIONS
@@ -38,12 +38,10 @@ def run_git_command(args: list[str]) -> str:
 
 def checkout_branch(branch_name: str) -> None:
     """Checks out an existing branch or creates it if it doesn't exist."""
-    # Check if branch exists locally or remotely
     branches = run_git_command(["branch", "-a"])
     if branch_name in branches:
         run_git_command(["checkout", branch_name])
     else:
-        # Create and switch to new branch
         run_git_command(["checkout", "-b", branch_name])
 
 def add_file(file_path: str) -> None:
@@ -52,13 +50,11 @@ def add_file(file_path: str) -> None:
 
 def commit_changes(commit_message: str) -> str:
     """Commits staged changes."""
-    # Check if there are changes to commit
     status = run_git_command(["status", "--porcelain"])
     if not status:
         raise ValueError("Nothing to commit. No changes detected in the staged file.")
-    
+
     run_git_command(["commit", "-m", commit_message])
-    # Get short commit hash
     commit_hash = run_git_command(["rev-parse", "--short", "HEAD"])
     return commit_hash
 
@@ -73,26 +69,24 @@ def push_branch(branch_name: str) -> None:
 
 def parse_request(user_prompt: str) -> tuple[str | None, str | None]:
     """
-    Extracts file_path and branch_name from natural language prompts.
-    Uses basic regex pattern extraction to isolate paths and branch formats.
+    Extracts file_path and branch_name from natural language prompts using Regex.
     """
     file_path = None
     branch_name = None
 
-    # Pattern for file path: windows paths, posix paths, or quoted strings ending with file extensions
+    # Matches file paths ending in common extensions or standard path formats
     path_match = re.search(r'["\']?([A-Za-z]:[\\/][^"\'\s]+|\b\/?[\w\.-]+(?:\/[\w\.-]+)+\.[\w]+)["\']?', user_prompt)
     if path_match:
         file_path = path_match.group(1).strip()
 
-    # Pattern for branch name: "branch <name>", "to <branch>", or standard git branch naming patterns
+    # Matches branch names following keywords like 'branch <name>' or 'to <name>'
     branch_match = re.search(r'(?:branch\s+["\']?([\w\/-]+)["\']?|to\s+["\']?([\w\/-]+)["\']?)', user_prompt, re.IGNORECASE)
     if branch_match:
         branch_name = branch_match.group(1) or branch_match.group(2)
-        # Avoid capturing file paths as branch names if keywords overlap
         if branch_name and ("/" in branch_name) and ("." in branch_name.split("/")[-1]):
             branch_name = None
 
-    # Secondary check for explicit quotation marks if regular patterns missed them
+    # Secondary check for quotes
     quotes = re.findall(r'["\']([^"\']+)["\']', user_prompt)
     for item in quotes:
         if item.endswith(('.csv', '.py', '.json', '.txt', '.sql', '.yml', '.yaml')) and not file_path:
@@ -103,15 +97,11 @@ def parse_request(user_prompt: str) -> tuple[str | None, str | None]:
     return file_path, branch_name
 
 
-def github_push_agent(user_prompt: str) -> str:
+def github_push_agent(file_path: str | None, branch_name: str | None) -> str:
     """
     Main Agent Orchestration workflow.
-    Validates inputs, handles prompts, and executes SDK tools safely.
+    Validates inputs and executes predefined Git SDK functions.
     """
-    # Step 1: Intent & Parameter Extraction
-    file_path, branch_name = parse_request(user_prompt)
-
-    # Step 2: Parameter Validation & Prompt Guard
     missing = []
     if not file_path:
         missing.append("1. File path")
@@ -126,26 +116,17 @@ def github_push_agent(user_prompt: str) -> str:
         else:
             return "Which branch should I push the file to?"
 
-    # Step 3: Tool Execution (SDK Pipeline)
     try:
-        # 1. Validate File Existence
         validate_file(file_path)
-
-        # 2. Checkout or Create Branch
         checkout_branch(branch_name)
-
-        # 3. Stage File
         add_file(file_path)
 
-        # 4. Commit Changes
         file_name = os.path.basename(file_path)
         commit_msg = f"Add {file_name} via GitHub Push Agent"
         commit_hash = commit_changes(commit_msg)
 
-        # 5. Push to Remote Branch
         push_branch(branch_name)
 
-        # Step 4: Return Agent Result
         return (
             f"File: {file_name}\n"
             f"Branch: {branch_name}\n\n"
@@ -160,26 +141,19 @@ def github_push_agent(user_prompt: str) -> str:
 
 
 # ==========================================
-# 3. VERIFICATION & TEST EXAMPLES
+# 3. SCRIPT ENTRY POINT
 # ==========================================
 
 if __name__ == "__main__":
-    print("--- Test 1: Full Prompt ---")
-    prompt_1 = 'Hey, take the file from "C:/project/output/ddl_validation_result.csv" and push it to branch "feature/ddl-validation"'
-    print("User Prompt:", prompt_1)
-    file_p, branch_p = parse_request(prompt_1)
-    print(f"Extracted -> Path: {file_p} | Branch: {branch_p}\n")
+    print("--- Git Copilot Agent --- (type 'exit' to quit)")
+    
+    while True:
+        user_input = input("You > ").strip()
+        if user_input.lower() in ("exit", "quit"):
+            break
+        if not user_input:
+            continue
 
-    print("--- Test 2: Missing Branch ---")
-    prompt_2 = 'Push C:/project/result.csv to GitHub.'
-    print("User Response:", github_push_agent(prompt_2))
-    print()
-
-    print("--- Test 3: Missing File Path ---")
-    prompt_3 = 'Push the file to feature/testing.'
-    print("User Response:", github_push_agent(prompt_3))
-    print()
-
-    print("--- Test 4: Completely Missing Parameters ---")
-    prompt_4 = 'Push my validation file to GitHub.'
-    print("User Response:", github_push_agent(prompt_4))
+        file_path, branch_name = parse_request(user_input)
+        result = github_push_agent(file_path, branch_name)
+        print(f"\n{result}\n")
